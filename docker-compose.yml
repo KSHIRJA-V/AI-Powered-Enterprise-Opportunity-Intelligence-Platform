@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DATABASE_URL=sqlite+aiosqlite:///./transformind.db
+      - QDRANT_HOST=:memory:
+    volumes:
+      - ./backend/data:/app/backend/data
+    restart: unless-stopped
