@@ -3,13 +3,13 @@ from pydantic_settings import BaseSettings
 from typing import List, Optional
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "TransforMind AI"
+    PROJECT_NAME: str = "Enterprise Opportunity Intelligence Platform"
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
     
     # Environment & Database
     ENV: str = os.getenv("ENV", "development")
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./transformind.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./opportunity_intel.db")
     
     # LLM Settings (OpenRouter / DeepSeek / Fallback)
     OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY", "")

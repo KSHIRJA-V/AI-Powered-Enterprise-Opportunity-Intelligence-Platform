@@ -1,6 +1,6 @@
 @echo off
 echo ===================================================
-echo Starting TransforMind AI React Frontend (Vite)...
+echo Starting Frontend Dashboard (Vite)...
 echo ===================================================
 cd frontend
 npm run dev

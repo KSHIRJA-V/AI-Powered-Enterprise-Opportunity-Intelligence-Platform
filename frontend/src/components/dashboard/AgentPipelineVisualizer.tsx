@@ -13,21 +13,17 @@ interface AgentPipelineVisualizerProps {
   companyName: string;
 }
 
-const AGENTS = [
-  { id: 'market_agent', name: 'Market Intelligence Agent', domain: 'NewsAPI, SEC Filings & Strategic Intent', icon: Layers },
-  { id: 'financial_agent', name: 'Financial Health Agent', domain: 'Alpha Vantage, CapEx Runway & R&D Intensity', icon: Layers },
-  { id: 'engineering_agent', name: 'Engineering & OSS Auditor', domain: 'GitHub REST API, Commit Cadence & Language Matrix', icon: Layers },
-  { id: 'talent_agent', name: 'Talent & Workforce Agent', domain: 'Job Postings, AI/ML Talent Density & Skill Deficits', icon: Layers },
-  { id: 'tech_stack_agent', name: 'Tech Stack & Architecture Auditor', domain: 'BuiltWith, Cloud-Native vs Legacy Footprint', icon: Layers },
-  { id: 'fusion_agent', name: 'Evidence Fusion & Contradiction Agent', domain: 'Cross-Source Tension Matrix & Mirage Filter', icon: Layers },
-  { id: 'readiness_agent', name: 'Readiness Tensor Agent', domain: '5-Axis MD-TORI Tensor Calculation', icon: Layers },
-  { id: 'roadmap_agent', name: 'Transformation Roadmap Planner', domain: '3-Horizon DAG Topological Scheduling', icon: Layers },
-  { id: 'guardrail_agent', name: 'Guardrail & Claim Lineage Agent', domain: 'PII Redaction, Credibility Gating & Lineage Graph', icon: Layers },
+const FIVE_AGENTS = [
+  { id: 'news_agent', name: '1. News Agent', domain: 'NewsAPI, Press Releases & Strategic Intent', icon: Layers },
+  { id: 'financial_agent', name: '2. Financial Agent', domain: 'Alpha Vantage, CapEx Runway & R&D Spend', icon: Layers },
+  { id: 'risk_agent', name: '3. Risk Agent', domain: 'Market Headwinds, Tech Debt & Compliance Exposure', icon: Layers },
+  { id: 'opportunity_agent', name: '4. Opportunity Agent', domain: 'Opportunity Scoring: Cloud, AI, Cyber, Modernization', icon: Layers },
+  { id: 'strategy_coordinator', name: '5. Strategy Coordinator', domain: 'IT Service Mapping, Explainability & 8 Guardrails', icon: Layers },
 ];
 
 export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = ({ companyName }) => {
   const [events, setEvents] = useState<AgentStreamEvent[]>([]);
-  const [currentStep, setCurrentStep] = useState<number>(9);
+  const [currentStep, setCurrentStep] = useState<number>(5);
   const [isLiveStreaming, setIsLiveStreaming] = useState<boolean>(false);
 
   const startLiveSimulation = () => {
@@ -35,14 +31,14 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
     setCurrentStep(1);
     setIsLiveStreaming(true);
 
-    const eventSource = new EventSource('http://localhost:8000/api/analysis/stream/' + encodeURIComponent(companyName));
+    const eventSource = new EventSource(`http://localhost:8000/api/analysis/stream/${encodeURIComponent(companyName)}`);
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         setEvents((prev) => [...prev, data]);
         setCurrentStep(data.step);
-        if (data.step >= 9 || data.status === 'FINISHED') {
+        if (data.step >= 5 || data.status === 'FINISHED') {
           eventSource.close();
           setIsLiveStreaming(false);
         }
@@ -58,14 +54,13 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
   };
 
   useEffect(() => {
-    // Populate completed state by default
     if (events.length === 0) {
-      const defaultEvents: AgentStreamEvent[] = AGENTS.map((agent, i) => ({
+      const defaultEvents: AgentStreamEvent[] = FIVE_AGENTS.map((agent, i) => ({
         step: i + 1,
-        total_steps: AGENTS.length,
+        total_steps: FIVE_AGENTS.length,
         agent_name: agent.name,
         status: 'COMPLETED',
-        message: 'Successfully executed ' + agent.name + ' across heterogeneous operational data vectors for ' + companyName + '.',
+        message: `Successfully executed ${agent.name} for ${companyName}.`,
         progress_pct: 100,
         timestamp: new Date().toISOString()
       }));
@@ -79,10 +74,10 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
         <div>
           <h2 className="text-lg font-bold text-white tracking-wide flex items-center space-x-2">
             <Cpu className="w-5 h-5 text-blue-400" />
-            <span>LangGraph Multi-Agent Orchestration Visualizer</span>
+            <span>5-Agent Multi-Agent Orchestration Pipeline (Slide 8 Layer 4)</span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            9 specialized autonomous agents running synchronous cross-evidence ingestion, Bayesian fusion, and topological roadmap generation.
+            Deterministic LangGraph execution across 5 specialized autonomous agents synthesizing news, financials, risks, and scored opportunities.
           </p>
         </div>
 
@@ -95,14 +90,14 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
               : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-600/20'
           }`}
         >
-          {isLiveStreaming ? 'Streaming Agent Graph...' : 'Re-Execute Live Stream'}
+          {isLiveStreaming ? 'Streaming 5 Agents...' : 'Re-Execute Live Stream'}
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Agent Flow Graph */}
+        {/* Left: 5 Agent Nodes */}
         <div className="lg:col-span-7 space-y-3">
-          {AGENTS.map((agent, idx) => {
+          {FIVE_AGENTS.map((agent, idx) => {
             const stepNum = idx + 1;
             const isCompleted = currentStep >= stepNum;
             const isCurrent = currentStep === stepNum && isLiveStreaming;
@@ -150,7 +145,7 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
                   </span>
                 </div>
 
-                {idx < AGENTS.length - 1 && (
+                {idx < FIVE_AGENTS.length - 1 && (
                   <div className="flex justify-center -my-1">
                     <ArrowDown className="w-3.5 h-3.5 text-slate-700" />
                   </div>
@@ -160,11 +155,11 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
           })}
         </div>
 
-        {/* Right: Live Terminal Stream Output */}
-        <div className="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col h-[580px]">
+        {/* Right: Live Event Stream Terminal */}
+        <div className="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col h-[520px]">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
             <div className="flex items-center space-x-2">
-              <Terminal className="w-4 h-4 text-cyan-400" />
+              <Terminal className="w-4 h-4 text-blue-400" />
               <span className="text-xs font-mono font-bold text-slate-200 uppercase">Live Execution Log Stream</span>
             </div>
             <span className="text-[10px] font-mono text-slate-500">SSE Gateway: :8000</span>
@@ -177,7 +172,7 @@ export const AgentPipelineVisualizer: React.FC<AgentPipelineVisualizerProps> = (
                   <span className="text-blue-400 font-semibold">[{evt.agent_name}]</span>
                   <span className="text-[10px] text-slate-500">
                     <Clock className="w-3 h-3 inline mr-1" />
-                    {evt.timestamp.split('T')[1]?.split('.')[0] || '12:00:00'}
+                    {evt.timestamp?.split('T')[1]?.split('.')[0] || '12:00:00'}
                   </span>
                 </div>
                 <p className="text-slate-300 leading-relaxed">{evt.message}</p>
