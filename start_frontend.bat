@@ -2,6 +2,6 @@
 echo ===================================================
 echo Starting Frontend Dashboard (Vite)...
 echo ===================================================
-cd frontend
+cd /d "%~dp0frontend"
 npm run dev
 pause
