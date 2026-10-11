@@ -10,6 +10,7 @@ from app.api.routes_roadmap import router as roadmap_router
 from app.api.routes_contradictions import router as contradictions_router
 from app.api.routes_evaluations import router as evaluations_router
 from app.api.routes_reports import router as reports_router
+from app.api.routes_subscriptions import router as subscriptions_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,6 +42,7 @@ app.include_router(roadmap_router, prefix=settings.API_PREFIX)
 app.include_router(contradictions_router, prefix=settings.API_PREFIX)
 app.include_router(evaluations_router, prefix=settings.API_PREFIX)
 app.include_router(reports_router, prefix=settings.API_PREFIX)
+app.include_router(subscriptions_router, prefix=settings.API_PREFIX)
 
 @app.get("/")
 async def root():

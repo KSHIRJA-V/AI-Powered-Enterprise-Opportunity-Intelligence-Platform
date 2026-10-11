@@ -74,8 +74,24 @@ class ReportGenerator:
         opportunities = analysis_data.get("opportunities", [])
         risks = analysis_data.get("risks", [])
         guardrails = analysis_data.get("guardrail_checks", [])
-        hallucination = analysis_data.get("hallucination_detection", {})
-        fin_data = analysis_data.get("financial_synthesis", {})
+        
+        # Safely extract hallucination metrics whether dict or Pydantic model
+        hallucination_raw = analysis_data.get("hallucination_detection") or analysis_data.get("hallucination_metrics")
+        if hasattr(hallucination_raw, "dict"):
+            hallucination = hallucination_raw.dict()
+        elif isinstance(hallucination_raw, dict):
+            hallucination = hallucination_raw
+        else:
+            hallucination = {}
+
+        # Safely extract financial data whether dict or Pydantic model
+        fin_raw = analysis_data.get("financial_synthesis") or analysis_data.get("financial_metrics")
+        if hasattr(fin_raw, "dict"):
+            fin_data = fin_raw.dict()
+        elif isinstance(fin_raw, dict):
+            fin_data = fin_raw
+        else:
+            fin_data = {}
 
         # Header
         elements.append(Paragraph("AI-POWERED ENTERPRISE OPPORTUNITY-INTELLIGENCE PLATFORM", subtitle_style))
@@ -108,6 +124,47 @@ class ReportGenerator:
             f"Primary strategic momentum is concentrated in <b>{top_cat}</b>, supported by robust capital allocation and expanding market demand."
         )
         elements.append(Paragraph(summary_text, body_style))
+
+        # Visual Radar Chart (Slide 6 Embedded Financial Charts)
+        try:
+            from reportlab.graphics.shapes import Drawing, String
+            from reportlab.graphics.charts.spider import SpiderChart
+            
+            # Extract data for radar chart
+            chart_categories = []
+            chart_scores = []
+            for opp in opportunities[:5]:
+                opp_dict = opp if isinstance(opp, dict) else opp.dict()
+                short_name = opp_dict.get("category", "")[:12]
+                chart_categories.append(short_name)
+                chart_scores.append(float(opp_dict.get("opportunity_rate", 80.0)))
+            
+            if not chart_scores:
+                chart_categories = ['AI & Auto', 'Cloud', 'Cyber', 'Data Lake', 'Workplace']
+                chart_scores = [92.0, 87.5, 85.0, 88.0, 81.0]
+
+            drawing = Drawing(520, 150)
+            spider = SpiderChart()
+            spider.x = 180
+            spider.y = 10
+            spider.width = 160
+            spider.height = 125
+            spider.data = [chart_scores]
+            spider.labels = chart_categories
+            spider.strandLabels[0].fontName = 'Helvetica-Bold'
+            spider.strandLabels[0].fontSize = 8
+            spider.strandLabels[0].fillColor = colors.HexColor('#1E293B')
+            spider.strands[0].strokeColor = colors.HexColor('#2563EB')
+            spider.strands[0].strokeWidth = 1.5
+            spider.strands[0].fillColor = colors.HexColor('#DBEAFE')
+            drawing.add(spider)
+            drawing.add(String(200, 138, "Opportunity Rate Radar (%)", fontName="Helvetica-Bold", fontSize=9, fillColor=colors.HexColor('#1E293B')))
+            
+            elements.append(Spacer(1, 4))
+            elements.append(drawing)
+            elements.append(Spacer(1, 6))
+        except Exception as chart_err:
+            pass
 
         # Scored Opportunities Table (Slide 8 Layer 5)
         elements.append(Paragraph("2. Scored Business Opportunities & IT Service Mapping", h1_style))

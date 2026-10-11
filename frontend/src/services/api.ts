@@ -58,5 +58,54 @@ export const apiService = {
 
   getPdfReportUrl(companyName: string): string {
     return `${API_BASE_URL}/reports/pdf/${encodeURIComponent(companyName)}`;
+  },
+
+  async downloadPdfReport(companyName: string): Promise<void> {
+    const url = `${API_BASE_URL}/reports/pdf/${encodeURIComponent(companyName)}`;
+    try {
+      const response = await client.get(`/reports/pdf/${encodeURIComponent(companyName)}`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      const safeName = companyName.replace(/[^a-zA-Z0-9]/g, '_');
+      link.setAttribute('download', `Enterprise_Opportunity_Intelligence_Report_${safeName}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.warn('Direct blob download failed, falling back to window.open', err);
+      window.open(url, '_blank');
+    }
+  },
+
+  async subscribeToAlerts(email: string, companyName: string, frequency: string = 'WEEKLY', threshold: number = 75.0) {
+    const resp = await client.post('/subscriptions/subscribe', {
+      email,
+      company_name: companyName,
+      frequency,
+      opportunity_threshold: threshold
+    });
+    return resp.data;
+  },
+
+  async sendDigest(email: string, companyName: string, frequency: string = 'WEEKLY') {
+    const resp = await client.post('/subscriptions/send-digest', {
+      email,
+      company_name: companyName,
+      frequency
+    });
+    return resp.data;
+  },
+
+  async emailPdfReport(email: string, companyName: string) {
+    const resp = await client.post('/subscriptions/email-report', {
+      email,
+      company_name: companyName
+    });
+    return resp.data;
   }
 };
