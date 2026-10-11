@@ -127,41 +127,93 @@ class ReportGenerator:
 
         # Visual Radar Chart (Slide 6 Embedded Financial Charts)
         try:
-            from reportlab.graphics.shapes import Drawing, String
-            from reportlab.graphics.charts.spider import SpiderChart
+            import math
+            from reportlab.graphics.shapes import Drawing, String, Polygon, Circle, Line
             
-            # Extract data for radar chart
+            # Map categories to full clean names (avoids awkward truncation)
+            cat_map = {
+                "Enterprise AI & Automation": "Enterprise AI",
+                "Cloud Migration & Modernization": "Cloud Migration",
+                "Cybersecurity & Compliance": "Cybersecurity",
+                "Data Infrastructure & Analytics": "Data Infrastructure",
+                "Digital Workplace & Operations": "Digital Workplace"
+            }
+            
             chart_categories = []
             chart_scores = []
             for opp in opportunities[:5]:
-                opp_dict = opp if isinstance(opp, dict) else opp.dict()
-                short_name = opp_dict.get("category", "")[:12]
-                chart_categories.append(short_name)
+                opp_dict = opp if isinstance(opp, dict) else (opp.dict() if hasattr(opp, "dict") else {})
+                raw_cat = opp_dict.get("category", "")
+                clean_name = cat_map.get(raw_cat, raw_cat.split(" & ")[0] if " & " in raw_cat else raw_cat)
+                chart_categories.append(clean_name)
                 chart_scores.append(float(opp_dict.get("opportunity_rate", 80.0)))
             
-            if not chart_scores:
-                chart_categories = ['AI & Auto', 'Cloud', 'Cyber', 'Data Lake', 'Workplace']
+            if not chart_scores or len(chart_scores) < 3:
+                chart_categories = ['Enterprise AI', 'Cloud Migration', 'Cybersecurity', 'Data Infrastructure', 'Digital Workplace']
                 chart_scores = [92.0, 87.5, 85.0, 88.0, 81.0]
 
-            drawing = Drawing(520, 150)
-            spider = SpiderChart()
-            spider.x = 180
-            spider.y = 10
-            spider.width = 160
-            spider.height = 125
-            spider.data = [chart_scores]
-            spider.labels = chart_categories
-            spider.strandLabels[0].fontName = 'Helvetica-Bold'
-            spider.strandLabels[0].fontSize = 8
-            spider.strandLabels[0].fillColor = colors.HexColor('#1E293B')
-            spider.strands[0].strokeColor = colors.HexColor('#2563EB')
-            spider.strands[0].strokeWidth = 1.5
-            spider.strands[0].fillColor = colors.HexColor('#DBEAFE')
-            drawing.add(spider)
-            drawing.add(String(200, 138, "Opportunity Rate Radar (%)", fontName="Helvetica-Bold", fontSize=9, fillColor=colors.HexColor('#1E293B')))
+            drawing_width = 540
+            drawing_height = 185
+            radar = Drawing(drawing_width, drawing_height)
             
+            cx = drawing_width / 2
+            cy = drawing_height / 2 - 12
+            r = 60
+            n = len(chart_categories)
+            angles = [math.pi / 2 - 2 * math.pi * i / n for i in range(n)]
+
+            # Draw concentric polygon grid webs (20%, 40%, 60%, 80%, 100%)
+            for level in [0.2, 0.4, 0.6, 0.8, 1.0]:
+                pts = []
+                for a in angles:
+                    pts.extend([cx + r * level * math.cos(a), cy + r * level * math.sin(a)])
+                radar.add(Polygon(pts, strokeColor=colors.HexColor('#E2E8F0'), strokeWidth=0.8, fillColor=None))
+
+            # Draw radial spoke lines
+            for a in angles:
+                radar.add(Line(cx, cy, cx + r * math.cos(a), cy + r * math.sin(a), strokeColor=colors.HexColor('#94A3B8'), strokeWidth=0.7))
+
+            # Draw data polygon
+            poly_pts = []
+            for a, s in zip(angles, chart_scores):
+                norm_s = (min(100.0, max(0.0, s)) / 100.0) * r
+                poly_pts.extend([cx + norm_s * math.cos(a), cy + norm_s * math.sin(a)])
+            
+            radar.add(Polygon(poly_pts, strokeColor=colors.HexColor('#2563EB'), strokeWidth=2.0, fillColor=colors.HexColor('#DBEAFE')))
+
+            # Draw vertex nodes
+            for i in range(0, len(poly_pts), 2):
+                radar.add(Circle(poly_pts[i], poly_pts[i+1], 3, fillColor=colors.HexColor('#1D4ED8'), strokeColor=colors.white, strokeWidth=1))
+
+            # Add clear, non-colliding labels with proper anchors
+            for a, cat, s in zip(angles, chart_categories, chart_scores):
+                cos_a = math.cos(a)
+                sin_a = math.sin(a)
+                dist = r + 18
+                lx = cx + dist * cos_a
+                ly = cy + dist * sin_a
+
+                if abs(cos_a) < 0.2:
+                    anchor = 'middle'
+                    if sin_a > 0:
+                        ly += 4
+                    else:
+                        ly -= 6
+                elif cos_a > 0:
+                    anchor = 'start'
+                    lx += 4
+                else:
+                    anchor = 'end'
+                    lx -= 4
+
+                lbl = f"{cat} ({s:.1f}%)"
+                radar.add(String(lx, ly, lbl, fontName='Helvetica-Bold', fontSize=8, fillColor=colors.HexColor('#1E293B'), textAnchor=anchor))
+
+            # Chart Title cleanly positioned at top with ample clearance
+            radar.add(String(drawing_width / 2, drawing_height - 10, "Enterprise Transformation Opportunity Radar (%)", fontName="Helvetica-Bold", fontSize=10, fillColor=colors.HexColor('#0F172A'), textAnchor='middle'))
+
             elements.append(Spacer(1, 4))
-            elements.append(drawing)
+            elements.append(radar)
             elements.append(Spacer(1, 6))
         except Exception as chart_err:
             pass

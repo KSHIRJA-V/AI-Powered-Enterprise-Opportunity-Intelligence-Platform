@@ -92,19 +92,23 @@ export const apiService = {
     return resp.data;
   },
 
-  async sendDigest(email: string, companyName: string, frequency: string = 'WEEKLY') {
+  async sendDigest(email: string, companyName: string, frequency: string = 'WEEKLY', smtpUsername?: string, smtpPassword?: string) {
     const resp = await client.post('/subscriptions/send-digest', {
       email,
       company_name: companyName,
-      frequency
+      frequency,
+      smtp_username: smtpUsername || undefined,
+      smtp_password: smtpPassword || undefined
     });
     return resp.data;
   },
 
-  async emailPdfReport(email: string, companyName: string) {
+  async emailPdfReport(email: string, companyName: string, smtpUsername?: string, smtpPassword?: string) {
     const resp = await client.post('/subscriptions/email-report', {
       email,
-      company_name: companyName
+      company_name: companyName,
+      smtp_username: smtpUsername || undefined,
+      smtp_password: smtpPassword || undefined
     });
     return resp.data;
   }

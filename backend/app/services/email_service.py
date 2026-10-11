@@ -17,19 +17,39 @@ class EmailService:
     """
 
     @classmethod
-    def _create_smtp_connection(cls):
+    def _create_smtp_connection(
+        cls,
+        smtp_user_override: Optional[str] = None,
+        smtp_pass_override: Optional[str] = None
+    ):
         smtp_server = getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = getattr(settings, "SMTP_PORT", 587)
-        smtp_user = getattr(settings, "SMTP_USERNAME", "")
-        smtp_password = getattr(settings, "SMTP_PASSWORD", "")
+        smtp_user = (smtp_user_override or getattr(settings, "SMTP_USERNAME", "") or os.getenv("SMTP_USERNAME", "")).strip()
+        smtp_password = (smtp_pass_override or getattr(settings, "SMTP_PASSWORD", "") or os.getenv("SMTP_PASSWORD", "")).strip()
         
+        # Remove any spaces that users commonly copy-paste from Google's 4x4 app password format "abcd efgh ijkl mnop"
+        if smtp_password:
+            smtp_password = smtp_password.replace(" ", "")
+
         if not smtp_user or not smtp_password:
-            return None
-            
-        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        return server
+            return None, "NO_CREDENTIALS"
+
+        try:
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=12)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_user, smtp_password)
+            return server, None
+        except smtplib.SMTPAuthenticationError as auth_err:
+            return None, (
+                "Gmail Authentication Error: Google rejected the credentials. "
+                "If you are using Gmail, you MUST use a 16-character 'App Password' from "
+                "https://myaccount.google.com/apppasswords (Security -> 2-Step Verification -> App Passwords) "
+                f"rather than your standard login password. Details: {str(auth_err)}"
+            )
+        except Exception as conn_err:
+            return None, f"SMTP Connection Failed to {smtp_server}:{smtp_port}: {str(conn_err)}"
 
     @classmethod
     def send_intelligence_digest(
@@ -37,7 +57,9 @@ class EmailService:
         to_email: str,
         company_name: str,
         analysis_data: Dict[str, Any],
-        frequency: str = "WEEKLY"
+        frequency: str = "WEEKLY",
+        smtp_username: Optional[str] = None,
+        smtp_password: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Dispatches an executive intelligence digest to a subscribed stakeholder.
@@ -103,13 +125,12 @@ class EmailService:
         </html>
         """
 
-        sender = getattr(settings, "SMTP_SENDER", "alerts@enterprise-intel.ai")
+        sender = smtp_username or getattr(settings, "SMTP_USERNAME", "") or getattr(settings, "SMTP_SENDER", "alerts@enterprise-intel.ai")
         timestamp = datetime.utcnow().isoformat()
 
-        # Try real SMTP if configured
-        try:
-            conn = cls._create_smtp_connection()
-            if conn:
+        conn, err_reason = cls._create_smtp_connection(smtp_username, smtp_password)
+        if conn:
+            try:
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = subject
                 msg["From"] = sender
@@ -125,29 +146,41 @@ class EmailService:
                     "frequency": frequency,
                     "subject": subject,
                     "timestamp": timestamp,
-                    "message": f"Successfully delivered {frequency} digest to {to_email} via SMTP."
+                    "message": f"Real email successfully delivered to {to_email} via Gmail SMTP!"
                 }
-        except Exception as e:
-            # Fallback to simulated delivery log
-            pass
+            except Exception as e:
+                return {
+                    "status": "ERROR",
+                    "recipient": to_email,
+                    "message": f"Failed while transmitting email: {str(e)}"
+                }
 
-        return {
-            "status": "DELIVERED",
-            "mode": "SIMULATION_VERIFIED",
-            "recipient": to_email,
-            "company_name": company_name,
-            "frequency": frequency,
-            "subject": subject,
-            "timestamp": timestamp,
-            "message": f"[Verified Simulation] Intelligence digest for {company_name} sent to {to_email}. (To enable live Gmail SMTP, set SMTP_USERNAME & SMTP_PASSWORD in .env)"
-        }
+        if err_reason == "NO_CREDENTIALS":
+            return {
+                "status": "CONFIG_REQUIRED",
+                "recipient": to_email,
+                "company_name": company_name,
+                "message": (
+                    "To send a real email directly to your inbox, enter your sender Gmail address and 16-character App Password "
+                    "in the SMTP settings below (or configure SMTP_USERNAME and SMTP_PASSWORD in backend/.env). "
+                    "Google requires an App Password (from https://myaccount.google.com/apppasswords) to authenticate automated email sending."
+                )
+            }
+        else:
+            return {
+                "status": "ERROR",
+                "recipient": to_email,
+                "message": err_reason
+            }
 
     @classmethod
     def send_pdf_report_email(
         cls,
         to_email: str,
         company_name: str,
-        pdf_bytes: bytes
+        pdf_bytes: bytes,
+        smtp_username: Optional[str] = None,
+        smtp_password: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Sends the compiled PDF strategy brief directly to a recipient email.
@@ -155,12 +188,12 @@ class EmailService:
         safe_name = company_name.replace(" ", "_").replace("/", "_")
         filename = f"Enterprise_Opportunity_Intelligence_Report_{safe_name}.pdf"
         subject = f"Executive Intelligence Report: {company_name}"
-        sender = getattr(settings, "SMTP_SENDER", "reports@enterprise-intel.ai")
+        sender = smtp_username or getattr(settings, "SMTP_USERNAME", "") or getattr(settings, "SMTP_SENDER", "reports@enterprise-intel.ai")
         timestamp = datetime.utcnow().isoformat()
 
-        try:
-            conn = cls._create_smtp_connection()
-            if conn:
+        conn, err_reason = cls._create_smtp_connection(smtp_username, smtp_password)
+        if conn:
+            try:
                 msg = MIMEMultipart()
                 msg["Subject"] = subject
                 msg["From"] = sender
@@ -182,18 +215,29 @@ class EmailService:
                     "filename": filename,
                     "bytes": len(pdf_bytes),
                     "timestamp": timestamp,
-                    "message": f"Successfully dispatched PDF report to {to_email}."
+                    "message": f"Real PDF report ({len(pdf_bytes)} bytes) successfully delivered to {to_email} via Gmail SMTP!"
                 }
-        except Exception as e:
-            pass
+            except Exception as e:
+                return {
+                    "status": "ERROR",
+                    "recipient": to_email,
+                    "message": f"Failed while transmitting email attachment: {str(e)}"
+                }
 
-        return {
-            "status": "DELIVERED",
-            "mode": "SIMULATION_VERIFIED",
-            "recipient": to_email,
-            "company_name": company_name,
-            "filename": filename,
-            "bytes": len(pdf_bytes),
-            "timestamp": timestamp,
-            "message": f"[Verified Simulation] PDF report ({len(pdf_bytes)} bytes) attached and dispatched to {to_email}."
-        }
+        if err_reason == "NO_CREDENTIALS":
+            return {
+                "status": "CONFIG_REQUIRED",
+                "recipient": to_email,
+                "company_name": company_name,
+                "message": (
+                    "To send a real email directly to your inbox, enter your sender Gmail address and 16-character App Password "
+                    "in the SMTP settings below (or configure SMTP_USERNAME and SMTP_PASSWORD in backend/.env). "
+                    "Google requires an App Password (from https://myaccount.google.com/apppasswords) to authenticate automated email sending."
+                )
+            }
+        else:
+            return {
+                "status": "ERROR",
+                "recipient": to_email,
+                "message": err_reason
+            }

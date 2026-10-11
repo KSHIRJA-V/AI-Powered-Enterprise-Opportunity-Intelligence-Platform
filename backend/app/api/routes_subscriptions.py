@@ -17,11 +17,15 @@ class SubscribeRequest(BaseModel):
 class EmailReportRequest(BaseModel):
     email: str = Field(..., description="Recipient email address")
     company_name: str
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
 
 class SendDigestRequest(BaseModel):
     email: str = Field(..., description="Recipient email address")
     company_name: str
     frequency: str = "WEEKLY"
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
 
 # In-memory storage for active subscriptions (Slide 6)
 SUBSCRIPTION_REGISTRY: List[Dict[str, Any]] = [
@@ -81,7 +85,9 @@ async def send_digest(req: SendDigestRequest):
         to_email=req.email,
         company_name=req.company_name,
         analysis_data=analysis_data,
-        frequency=req.frequency.upper()
+        frequency=req.frequency.upper(),
+        smtp_username=req.smtp_username,
+        smtp_password=req.smtp_password
     )
     return result
 
@@ -102,6 +108,8 @@ async def email_pdf_report(req: EmailReportRequest):
     result = EmailService.send_pdf_report_email(
         to_email=req.email,
         company_name=req.company_name,
-        pdf_bytes=pdf_bytes
+        pdf_bytes=pdf_bytes,
+        smtp_username=req.smtp_username,
+        smtp_password=req.smtp_password
     )
     return result

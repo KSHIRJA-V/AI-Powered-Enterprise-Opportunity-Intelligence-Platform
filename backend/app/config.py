@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     ENABLE_PII_SCRUBBING: bool = True
     MIN_CREDIBILITY_THRESHOLD: float = 0.45
     
+    # SMTP & Outbound Email (Slide 6 & 7)
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: Optional[str] = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD", "")
+    SMTP_SENDER: Optional[str] = os.getenv("SMTP_SENDER", "")
+    
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
